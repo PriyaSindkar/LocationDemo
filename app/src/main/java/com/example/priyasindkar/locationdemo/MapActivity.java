@@ -19,7 +19,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -45,8 +44,9 @@ public class MapActivity extends FragmentActivity implements
 
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
-
+    double currentLatitude, currentLongitude;
     private TextView text;
+    private boolean isFirstTime = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +64,10 @@ public class MapActivity extends FragmentActivity implements
         mLocationRequest = LocationRequest.create()
                 .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
                 .setInterval(10 * 1000)        // 10 seconds, in milliseconds
-                .setFastestInterval(1 * 1000); // 1 second, in milliseconds
+                .setFastestInterval(1 * 1000)
+                /*.setNumUpdates(1)*/;
+
+        mGoogleApiClient.connect();
 
         text = (TextView) findViewById(R.id.text);
     }
@@ -73,13 +76,19 @@ public class MapActivity extends FragmentActivity implements
     protected void onResume() {
         super.onResume();
         //setUpMapIfNeeded();
-        mGoogleApiClient.connect();
+
+        if (mGoogleApiClient.isConnected()) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            LocationServices.FusedLocationApi.requestLocationUpdates(
+                    mGoogleApiClient, mLocationRequest, this);
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-
         if (mGoogleApiClient.isConnected()) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();
@@ -107,15 +116,20 @@ public class MapActivity extends FragmentActivity implements
         mMap.addMarker(new MarkerOptions().position(new LatLng(0, 0)).title("Marker"));
     }*/
     private void handleNewLocation(Location location) {
+        Log.e("handleNewLocation", "handleNewLocation");
+       /* if(!isFirstTime) {
+            if (currentLatitude != location.getLatitude() && currentLongitude != location.getLongitude()) {
+                text.setText("Latitude: " + currentLatitude + "\n" + "Longitude: " + currentLongitude);
+            }
+        } else {
+            isFirstTime = false;
+            text.setText("Latitude: " + currentLatitude + "\n" + "Longitude: " + currentLongitude);
+        }*/
 
-        double currentLatitude = location.getLatitude();
-        double currentLongitude = location.getLongitude();
-
+        currentLatitude = location.getLatitude();
+        currentLongitude = location.getLongitude();
         LatLng latLng = new LatLng(currentLatitude, currentLongitude);
-
         text.setText("Latitude: " + currentLatitude + "\n" + "Longitude: " + currentLongitude);
-
-
         //mMap.addMarker(new MarkerOptions().position(new LatLng(currentLatitude, currentLongitude)).title("Current Location"));
         /*MarkerOptions options = new MarkerOptions()
                 .position(latLng)
@@ -126,14 +140,9 @@ public class MapActivity extends FragmentActivity implements
 
     @Override
     public void onConnected(Bundle bundle) {
+        Log.e("onConnected", "onConnected");
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
 
@@ -149,6 +158,7 @@ public class MapActivity extends FragmentActivity implements
         } else {
             Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
             if (location == null) {
+                Log.e("location", "null");
                 LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
             } else {
                 handleNewLocation(location);
@@ -156,12 +166,11 @@ public class MapActivity extends FragmentActivity implements
         }
 
 
-
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        mGoogleApiClient.connect();
     }
 
     @Override
@@ -195,6 +204,7 @@ public class MapActivity extends FragmentActivity implements
 
     @Override
     public void onLocationChanged(Location location) {
+        Log.e(TAG, "onLocationChanged");
         handleNewLocation(location);
     }
 
@@ -208,14 +218,6 @@ public class MapActivity extends FragmentActivity implements
             public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 startActivity(intent);
-                if (mGoogleApiClient.isConnected()) {
-                    LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, MapActivity.this);
-                    mGoogleApiClient.disconnect();
-                }
-                /*if (location == null)
-                    getLocation();
-                else
-                    Toast.makeText(MapActivity.this, "Locatuion founndd", Toast.LENGTH_SHORT).show();*/
                 dialog.cancel();
             }
         });
