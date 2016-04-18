@@ -84,6 +84,8 @@ public class MapActivity extends FragmentActivity implements
         text.setText("Latitude: " + currentLatitude + "\nLongitude: " + currentLongitude);
     }
 
+
+
     @Override
     public void onConnected(Bundle bundle) {
         Log.e(TAG, "onConnected");
